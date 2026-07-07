@@ -1,0 +1,142 @@
+<section class="toolbar card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="toolbar-grid">
+      <div>
+        <p class="toolbar-label">Tong quan</p>
+        <h2>Danh sach bang `passport_ocr_records`</h2>
+        <p class="toolbar-text">
+          Chon tung ban ghi de doi chieu anh, raw OCR text va cap nhat JSON review.
+        </p>
+      </div>
+
+      <div class="filters">
+        <label class="form-label mb-1" for="statusFilter">Trang thai</label>
+        <select
+          id="statusFilter"
+          class="form-select"
+          [value]="statusFilter"
+          (change)="onStatusFilterChange(($any($event.target)).value)"
+        >
+          @for (status of statusOptions; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (errorMessage) {
+      <div class="alert alert-danger mt-3 mb-0">{{ errorMessage }}</div>
+    }
+  </div>
+</section>
+
+<section class="table-card card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 review-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Anh</th>
+            <th>Ho ten</th>
+            <th>So ho chieu</th>
+            <th>Ngay sinh</th>
+            <th>Trang thai</th>
+            <th>Cap nhat</th>
+            <th class="text-end">Thao tac</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (isTableLoading) {
+            <tr>
+              <td colspan="8" class="text-center py-5 text-secondary">Dang tai du lieu...</td>
+            </tr>
+          } @else if (records.length === 0) {
+            <tr>
+              <td colspan="8" class="text-center py-5 text-secondary">Chua co ban ghi nao.</td>
+            </tr>
+          } @else {
+            @for (record of records; track trackByRecordId($index, record)) {
+              <tr>
+                <td class="fw-semibold">#{{ record.id }}</td>
+                <td>
+                  <div class="image-chip">{{ record.image_name }}</div>
+                </td>
+                <td>{{ record.full_name || '-' }}</td>
+                <td>{{ record.passport_number || '-' }}</td>
+                <td>{{ record.date_of_birth || '-' }}</td>
+                <td>
+                  <span class="badge rounded-pill" [class]="record.status === 'reviewed' ? 'text-bg-success' : 'text-bg-warning'">
+                    {{ record.status }}
+                  </span>
+                </td>
+                <td>{{ record.updated_at | date: 'short' }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="openRecord(record.id)">
+                    Xu ly
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <div class="footer-summary">
+        <span>{{ totalItems }} ban ghi</span>
+
+        <div class="page-size">
+          <label class="form-label mb-0" for="pageSize">Moi trang</label>
+          <select
+            id="pageSize"
+            class="form-select form-select-sm"
+            [value]="pageSize"
+            (change)="onPageSizeChange(+$any($event.target).value)"
+          >
+            @for (option of pageSizeOptions; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <nav aria-label="Pagination">
+        <ul class="pagination mb-0">
+          <li class="page-item" [class.disabled]="currentPage === 1">
+            <button class="page-link" type="button" (click)="loadRecords(currentPage - 1)">Prev</button>
+          </li>
+
+          @for (page of pages; track page) {
+            <li class="page-item" [class.active]="page === currentPage">
+              <button class="page-link" type="button" (click)="loadRecords(page)">{{ page }}</button>
+            </li>
+          }
+
+          <li class="page-item" [class.disabled]="currentPage === totalPages">
+            <button class="page-link" type="button" (click)="loadRecords(currentPage + 1)">Next</button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</section>
+
+<app-record-review-modal
+  [visible]="isModalVisible"
+  [loading]="isDetailLoading"
+  [saving]="isSaving"
+  [overlayLoading]="isOverlayLoading"
+  [record]="selectedRecord"
+  [layoutLmItems]="selectedLayoutLmItems"
+  [imageUrl]="selectedImageUrl"
+  [form]="recordForm"
+  [countryOptions]="countryOptions"
+  (close)="closeModal()"
+  (save)="saveRecord(false)"
+  (saveAndNext)="saveRecord(true)"
+  (previous)="goToPreviousRecord()"
+  (next)="goToNextRecord()"
+  (layoutLmItemsChange)="onLayoutLmItemsChange($event)"
+/>

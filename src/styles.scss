@@ -1,1 +1,30 @@
-/* You can add global styles to this file, and also import other style files */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+:root {
+  --app-bg: #f5efe6;
+  --app-bg-deep: #efe4d6;
+  --app-surface: rgba(255, 255, 255, 0.86);
+  --app-ink: #1f2933;
+  --app-muted: #5b6875;
+  --app-accent: #0b848a;
+  --app-accent-strong: #0b525b;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--app-ink);
+  background:
+    radial-gradient(circle at top left, rgba(11, 132, 138, 0.18), transparent 24%),
+    radial-gradient(circle at top right, rgba(179, 86, 45, 0.16), transparent 28%),
+    linear-gradient(180deg, var(--app-bg), var(--app-bg-deep));
+  font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}

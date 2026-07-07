@@ -1,0 +1,287 @@
+@if (visible) {
+  <div class="review-modal-backdrop" (click)="close.emit()"></div>
+
+  <div class="review-modal modal d-block" tabindex="-1" role="dialog" aria-modal="true">
+    <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-4 mb-1">
+              Xu ly ban ghi #{{ record?.id }} - {{ record?.image_name }}
+            </h2>
+            <div class="record-meta">
+              <span class="badge text-bg-warning-subtle text-warning-emphasis border">
+                {{ record?.status }}
+              </span>
+              <span>Cap nhat: {{ record?.updated_at | date: 'short' }}</span>
+            </div>
+          </div>
+
+          <button type="button" class="btn-close" aria-label="Close" (click)="close.emit()"></button>
+        </div>
+
+        <div #modalBody class="modal-body p-0">
+          @if (loading || !record) {
+            <div class="p-5 text-center text-secondary">Dang tai chi tiet ban ghi...</div>
+          } @else {
+            <div class="review-grid">
+              <section class="image-panel">
+                <div class="panel-head">
+                  <h3>Anh ho chieu</h3>
+                  <p>Click box de gan nhan. Nhan <strong>Ctrl + lan chuot</strong> de phong to/thu nho theo vi tri con tro.</p>
+                </div>
+
+                <div class="image-toolbar">
+                  <div class="image-toolbar-status">
+                    <span>Zoom: {{ zoomPercentage }}%</span>
+                    <span>Goc xoay: {{ imageRotationDegrees }}&deg;</span>
+                  </div>
+
+                  <div class="image-toolbar-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="rotateImageLeft()">
+                      Xoay trai 90&deg;
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="rotateImageRight()">
+                      Xoay phai 90&deg;
+                    </button>
+                    <span class="image-toolbar-hint">Ctrl + scroll de zoom</span>
+                  </div>
+                </div>
+
+                <div #imageViewport class="image-frame" (wheel)="onImageViewportWheel($event)">
+                  <div
+                    class="image-canvas"
+                    [style.width.px]="canvasWidth"
+                    [style.height.px]="canvasHeight"
+                  >
+                    <div
+                      class="image-rotator"
+                      [style.width.px]="displayedImageWidth"
+                      [style.height.px]="displayedImageHeight"
+                      [style.transform]="imageRotationTransform"
+                    >
+                      <img #overlayImage [src]="imageUrl" [alt]="record.image_name" (load)="onImageLoaded()" />
+
+                      @if (layoutLmItems.length > 0) {
+                        <div
+                          class="layoutlm-overlay"
+                          [style.width.px]="displayedImageWidth"
+                          [style.height.px]="displayedImageHeight"
+                        >
+                          @for (item of layoutLmItems; track item.id; let index = $index) {
+                            <button
+                              type="button"
+                              class="layoutlm-box"
+                              [ngClass]="getLayoutLmItemClasses(item)"
+                              [ngStyle]="getLayoutLmItemStyles(item, index)"
+                              [attr.title]="item.text + ' | ' + (item.label === 'O' ? 'Chua gan nhan' : item.label)"
+                              (click)="selectLayoutLmItem(item.id)"
+                              (dblclick)="copyLayoutLmItemText(item, $event)"
+                            >
+                              <span class="visually-hidden">{{ item.text }}</span>
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div class="overlay-note">
+                  @if (overlayLoading) {
+                    <span>Dang tao box LayoutLM tu OCR cho ban ghi nay...</span>
+                  } @else if (copiedWordText) {
+                    <span>Da copy: {{ copiedWordText }}</span>
+                  } @else if (layoutLmItems.length > 0) {
+                    <span>{{ layoutLmItems.length }} box san sang de gan nhan. Click de chon, double click de copy.</span>
+                  } @else {
+                    <span>Chua co box LayoutLM cho ban ghi nay.</span>
+                  }
+                </div>
+              </section>
+
+              <section #editorPanel class="editor-panel">
+                <div class="panel-head">
+                  <h3>Chinh sua du lieu</h3>
+                  <p>Gan nhan truc tiep tren box OCR, text-input se tu fill sang ben phai. Select thi ban tu chon tay.</p>
+                </div>
+
+                <div class="tag-review-panel">
+                  <div class="tag-review-head">
+                    <div>
+                      <h4>Gan nhan LayoutLM</h4>
+                      @if (selectedLayoutLmItem) {
+                        <p>
+                          Box dang chon:
+                          <strong>{{ selectedLayoutLmItem.text }}</strong>
+                          @if (selectedLayoutLmItem.label !== 'O') {
+                            <span class="current-label">{{ selectedLayoutLmItem.label }}</span>
+                          }
+                        </p>
+                      } @else {
+                        <p>Chon 1 box tren anh roi bam nhan o day de gan.</p>
+                      }
+                    </div>
+
+                    <div class="tag-review-actions">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        [disabled]="!selectedLayoutLmItem"
+                        (click)="clearSelectedItemLabel()"
+                      >
+                        Bo gan nhan
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        [disabled]="layoutLmItems.length === 0"
+                        (click)="clearAllLayoutLmLabels()"
+                      >
+                        Bo gan tat ca
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="tag-chip-grid">
+                    @for (tag of layoutLmTagDefinitions; track tag.key) {
+                      <button
+                        type="button"
+                        class="btn btn-sm tag-chip"
+                        [class.active]="isTagActiveForSelectedItem(tag.key)"
+                        [disabled]="!selectedLayoutLmItem"
+                        (click)="assignSelectedItemToField(tag.key)"
+                      >
+                        {{ tag.label }}
+                      </button>
+                    }
+                  </div>
+
+                  @if (assignedLayoutLmSummaries.length > 0) {
+                    <div class="assigned-summary">
+                      <label class="form-label">Da gan nhan</label>
+                      <div class="assigned-summary-list">
+                        @for (summary of assignedLayoutLmSummaries; track summary.fieldKey) {
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm assigned-summary-chip"
+                            (click)="focusAssignedItem(summary.itemIds)"
+                          >
+                            <strong>{{ summary.fieldLabel }}:</strong> {{ summary.text }}
+                            <span class="assigned-count">({{ summary.itemIds.length }} box)</span>
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                @if (showValidationSummary) {
+                  <div class="alert alert-warning validation-summary" role="alert">
+                    <strong>Chua the luu.</strong> Can nhap day du:
+                    {{ missingRequiredLabels.join(', ') }}
+                  </div>
+                }
+
+                <form class="row g-3" [formGroup]="form">
+                  @for (field of fieldDefinitions; track field.key) {
+                    <div class="col-md-6">
+                      <label class="form-label" [for]="field.key">
+                        {{ field.label }}
+                        @if (field.required) {
+                          <span class="required-mark">*</span>
+                        }
+                      </label>
+                      @if (field.type === 'select') {
+                        <select
+                          class="form-select"
+                          [class.is-invalid]="isFieldInvalid(field)"
+                          [id]="field.key"
+                          [formControlName]="field.key"
+                        >
+                          <option value="">-- Chon gia tri --</option>
+                          @for (option of getFieldOptions(field); track option.value) {
+                            <option [value]="option.value">{{ option.label }}</option>
+                          }
+                        </select>
+                      } @else {
+                        <input
+                          class="form-control"
+                          [class.is-invalid]="isFieldInvalid(field)"
+                          [id]="field.key"
+                          [formControlName]="field.key"
+                          [type]="field.type"
+                          (input)="onTextInput(field)"
+                        />
+                      }
+
+                      @if (isFieldInvalid(field)) {
+                        <div class="invalid-feedback d-block">
+                          Truong nay bat buoc.
+                        </div>
+                      }
+                    </div>
+                  }
+                </form>
+
+                <div class="ocr-panel">
+                  <label class="form-label">Raw OCR Text</label>
+                  <textarea class="form-control font-monospace" rows="12" [value]="record.raw_ocr_text" readonly></textarea>
+                </div>
+
+                <div class="ocr-panel">
+                  <label class="form-label">Reviewed JSON (Donut Train)</label>
+                  <textarea class="form-control font-monospace" rows="14" [value]="reviewedJsonPreview" readonly></textarea>
+                </div>
+
+                @if (record.error_message) {
+                  <div class="alert alert-danger mt-3 mb-0">
+                    <strong>Loi OCR:</strong> {{ record.error_message }}
+                  </div>
+                }
+              </section>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer justify-content-between gap-2">
+          <div class="d-flex gap-2 flex-wrap">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="!record?.previous_record_id || saving || loading"
+              (click)="previous.emit()"
+            >
+              Ban truoc
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="!record?.next_record_id || saving || loading"
+              (click)="next.emit()"
+            >
+              Ban tiep theo
+            </button>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-light border" [disabled]="saving" (click)="close.emit()">
+              Dong
+            </button>
+            <button type="button" class="btn btn-primary" [disabled]="saving || loading" (click)="save.emit()">
+              {{ saving ? 'Dang luu...' : 'Luu ban ghi' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              [disabled]="saving || loading || !record?.next_record_id"
+              (click)="saveAndNext.emit()"
+            >
+              Luu va tiep
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

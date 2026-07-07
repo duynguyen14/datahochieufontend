@@ -1,0 +1,48 @@
+:host {
+  display: block;
+}
+
+.review-shell {
+  min-height: 100vh;
+  padding: 2rem 0 3rem;
+}
+
+.shell-header {
+  width: min(1200px, calc(100% - 2rem));
+  margin: 0 auto 1.5rem;
+  padding: 2rem;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(11, 132, 138, 0.18), transparent 35%),
+    linear-gradient(135deg, rgba(255, 248, 238, 0.96), rgba(255, 255, 255, 0.86));
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 24px 60px rgba(112, 83, 55, 0.12);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--app-accent);
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.2rem);
+  line-height: 1.05;
+  color: var(--app-ink);
+}
+
+.lead {
+  margin: 0.85rem 0 0;
+  max-width: 60rem;
+  color: var(--app-muted);
+  font-size: 1rem;
+}
+
+.shell-content {
+  width: min(1200px, calc(100% - 2rem));
+  margin: 0 auto;
+}
