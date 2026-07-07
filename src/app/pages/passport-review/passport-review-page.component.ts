@@ -151,10 +151,11 @@ export class PassportReviewPageComponent {
       return;
     }
 
+    const editableFields = this.normalizeEditableFieldsForSave(this.recordForm.getRawValue() as PassportEditableFields);
     this.isSaving = true;
     this.errorMessage = '';
     const payload = {
-      editable_fields: this.recordForm.getRawValue() as PassportEditableFields,
+      editable_fields: editableFields,
       status: 'reviewed',
       layoutlm_review: this.selectedLayoutLmItems.length > 0
         ? this.buildLayoutLmPayload(this.selectedRecord.image_name, this.selectedLayoutLmItems)
@@ -310,5 +311,43 @@ export class PassportReviewPageComponent {
           }
         : record
     );
+  }
+
+  private normalizeEditableFieldsForSave(fields: PassportEditableFields): PassportEditableFields {
+    return {
+      ...fields,
+      date_of_birth: this.normalizeDateForSave(fields.date_of_birth),
+      date_of_issue: this.normalizeDateForSave(fields.date_of_issue),
+      date_of_expiry: this.normalizeDateForSave(fields.date_of_expiry)
+    };
+  }
+  private normalizeDateForSave(value?: string): string {
+    const normalizedValue = String(value ?? '').trim();
+    if (!normalizedValue) {
+      return '';
+    }
+
+    const isoMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      return normalizedValue;
+    }
+
+    const dayFirstMatch = normalizedValue.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/);
+    if (!dayFirstMatch) {
+      return normalizedValue;
+    }
+
+    const day = Number(dayFirstMatch[1]);
+    const month = Number(dayFirstMatch[2]);
+    const yearToken = dayFirstMatch[3];
+    const year = yearToken.length === 2
+      ? (Number(yearToken) >= 69 ? 1900 + Number(yearToken) : 2000 + Number(yearToken))
+      : Number(yearToken);
+
+    if (!day || !month || !year) {
+      return normalizedValue;
+    }
+
+    return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
   }
 }

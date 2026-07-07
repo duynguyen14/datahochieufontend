@@ -300,12 +300,18 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
       return '{}';
     }
 
+    const normalizedGtParse = this.fieldDefinitions.reduce<Record<string, string>>((accumulator, field) => {
+      const controlValue = String(this.form.get(field.key)?.value ?? '');
+      accumulator[field.key] = this.normalizeValueForOutput(field, controlValue);
+      return accumulator;
+    }, {});
+
     return JSON.stringify(
       {
         file_name: this.record.image_name,
         ground_truth: JSON.stringify(
           {
-            gt_parse: this.form.getRawValue()
+            gt_parse: normalizedGtParse
           }
         )
       },
@@ -460,7 +466,7 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
 
   private autofillFieldFromItems(fieldKey: string, items: LayoutLmItem[]): void {
     const definition = this.fieldDefinitions.find((field) => field.key === fieldKey);
-    if (!definition || definition.type === 'select') {
+    if (!definition) {
       return;
     }
 
@@ -469,13 +475,22 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    let nextValue = this.joinFieldTexts(this.getItemsForField(items, fieldKey));
-    if (definition.type === 'date') {
-      nextValue = this.normalizeDateInputValue(nextValue);
+    const fieldItems = this.getItemsForField(items, fieldKey);
+    const rawJoinedValue = this.joinFieldTexts(fieldItems);
+    if (!rawJoinedValue) {
+      return;
     }
 
-    if (definition.uppercase) {
-      nextValue = nextValue.toUpperCase();
+    let nextValue = rawJoinedValue;
+    if (definition.type === 'select') {
+      nextValue = this.resolveSelectValue(definition, rawJoinedValue);
+      if (!nextValue) {
+        return;
+      }
+    } else if (definition.type === 'date') {
+      nextValue = this.normalizeDateInputValue(rawJoinedValue);
+    } else if (definition.uppercase) {
+      nextValue = rawJoinedValue.toUpperCase();
     }
 
     control.setValue(nextValue);
@@ -584,6 +599,40 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
     return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
   }
 
+  private normalizeValueForOutput(field: ReviewFieldDefinition, value: string): string {
+    if (field.type === 'date') {
+      return this.normalizeDateInputValue(value);
+    }
+
+    if (field.uppercase) {
+      return value.toUpperCase().trim();
+    }
+
+    return value.trim();
+  }
+  private resolveSelectValue(field: ReviewFieldDefinition, rawValue: string): string {
+    const normalizedRawValue = rawValue.trim().toUpperCase().replace(/\s+/g, '');
+    if (!normalizedRawValue) {
+      return '';
+    }
+
+    if (field.key === 'passport_type') {
+      if (normalizedRawValue === 'PO' || normalizedRawValue.startsWith('PO')) {
+        return 'PO';
+      }
+      if (normalizedRawValue === 'PD' || normalizedRawValue.startsWith('PD')) {
+        return 'PD';
+      }
+      if (normalizedRawValue === 'P' || normalizedRawValue.startsWith('P<') || normalizedRawValue.startsWith('P')) {
+        return 'P';
+      }
+    }
+
+    const options = this.getFieldOptions(field);
+    const matchedOption = options.find((option) => option.value.trim().toUpperCase() === normalizedRawValue);
+    return matchedOption?.value ?? '';
+  }
+
   private cloneLayoutLmItems(items: LayoutLmItem[]): LayoutLmItem[] {
     return items.map((item) => ({
       ...item,
@@ -593,10 +642,6 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
 
   private clearAutofillableFields(): void {
     for (const field of this.fieldDefinitions) {
-      if (field.type === 'select') {
-        continue;
-      }
-
       const control = this.form.get(field.key);
       if (!control) {
         continue;
