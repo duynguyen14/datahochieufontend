@@ -66,7 +66,8 @@ export class PassportRecordsService {
     return this.http.get<{ items: SelectOption[] }>(`${this.apiBaseUrl}/code-values/countries`);
   }
 
-  getImageUrl(recordId: number): string {
-    return `${this.apiBaseUrl}/passport-records/${recordId}/image`;
+  getImageUrl(recordId: number, cacheBuster?: string | number): string {
+    const suffix = cacheBuster !== undefined ? `?v=${encodeURIComponent(String(cacheBuster))}` : '';
+    return `${this.apiBaseUrl}/passport-records/${recordId}/image${suffix}`;
   }
 }

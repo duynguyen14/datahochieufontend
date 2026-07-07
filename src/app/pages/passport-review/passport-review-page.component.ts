@@ -47,6 +47,7 @@ export class PassportReviewPageComponent {
   isOverlayLoading = false;
   isSaving = false;
   errorMessage = '';
+  imageRefreshToken = '';
 
   ngOnInit(): void {
     this.loadCountryOptions();
@@ -92,23 +93,18 @@ export class PassportReviewPageComponent {
     this.errorMessage = '';
     this.isModalVisible = true;
     this.isDetailLoading = true;
-    this.isOverlayLoading = false;
+    this.isOverlayLoading = true;
     this.selectedLayoutLmItems = [];
+    this.imageRefreshToken = `${recordId}-${Date.now()}`;
 
     this.recordsService
       .getRecord(recordId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (record) => {
-          if (record.layoutlm_items.length > 0) {
-            this.hydrateSelectedRecord(record);
-            return;
-          }
-
           this.selectedRecord = record;
           this.recordForm = this.buildForm(record.editable_fields);
           this.isDetailLoading = false;
-          this.isOverlayLoading = true;
           this.cdr.detectChanges();
 
           this.recordsService
@@ -116,10 +112,12 @@ export class PassportReviewPageComponent {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
               next: (generatedRecord) => {
+                this.imageRefreshToken = `${generatedRecord.id}-${generatedRecord.updated_at}-${Date.now()}`;
                 this.hydrateSelectedRecord(generatedRecord);
               },
               error: () => {
-                this.errorMessage = 'Khong tao duoc box LayoutLM cho ban ghi nay.';
+                this.errorMessage = 'Khong OCR lai duoc ban ghi nay. Dang hien thi du lieu cu nhat co san.';
+                this.hydrateSelectedRecord(record);
                 this.isOverlayLoading = false;
                 this.cdr.detectChanges();
               }
@@ -139,6 +137,7 @@ export class PassportReviewPageComponent {
     this.selectedRecord = null;
     this.selectedLayoutLmItems = [];
     this.errorMessage = '';
+    this.imageRefreshToken = '';
   }
 
   saveRecord(andMoveNext = false): void {
@@ -206,7 +205,7 @@ export class PassportReviewPageComponent {
       return '';
     }
 
-    return this.recordsService.getImageUrl(this.selectedRecord.id);
+    return this.recordsService.getImageUrl(this.selectedRecord.id, this.imageRefreshToken || this.selectedRecord.updated_at);
   }
 
   get pages(): number[] {
