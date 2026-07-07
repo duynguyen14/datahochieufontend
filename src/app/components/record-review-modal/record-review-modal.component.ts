@@ -55,6 +55,11 @@ interface AssignedLayoutLmSummary {
   itemIds: number[];
 }
 
+const AUTOFILL_TEXT_FIELD_KEYS = new Set<string>([
+  'place_of_birth',
+  'issuing_authority'
+]);
+
 @Component({
   selector: 'app-record-review-modal',
   imports: [CommonModule, ReactiveFormsModule],
@@ -376,10 +381,10 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
 
     this.layoutLmItemsChange.emit(this.cloneLayoutLmItems(updatedItems));
 
-    if (previousFieldKey) {
-      this.autofillFieldFromItems(previousFieldKey, updatedItems);
+    if (previousFieldKey && previousFieldKey !== fieldKey) {
+      this.clearFieldValueIfNoAssignedItems(previousFieldKey, updatedItems);
     }
-    this.autofillFieldFromItems(fieldKey, updatedItems);
+    this.autofillFieldFromSelectedItem(fieldKey, selectedItem.text);
   }
 
   clearSelectedItemLabel(): void {
@@ -400,7 +405,7 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
 
     this.layoutLmItemsChange.emit(this.cloneLayoutLmItems(updatedItems));
     if (previousFieldKey) {
-      this.autofillFieldFromItems(previousFieldKey, updatedItems);
+      this.clearFieldValueIfNoAssignedItems(previousFieldKey, updatedItems);
     }
   }
 
@@ -464,9 +469,13 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
     }
   }
 
-  private autofillFieldFromItems(fieldKey: string, items: LayoutLmItem[]): void {
+  private autofillFieldFromSelectedItem(fieldKey: string, rawValue: string): void {
     const definition = this.fieldDefinitions.find((field) => field.key === fieldKey);
     if (!definition) {
+      return;
+    }
+
+    if (!AUTOFILL_TEXT_FIELD_KEYS.has(fieldKey)) {
       return;
     }
 
@@ -475,25 +484,39 @@ export class RecordReviewModalComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const fieldItems = this.getItemsForField(items, fieldKey);
-    const rawJoinedValue = this.joinFieldTexts(fieldItems);
-    if (!rawJoinedValue) {
+    const normalizedRawValue = rawValue.trim();
+    if (!normalizedRawValue) {
       return;
     }
 
-    let nextValue = rawJoinedValue;
+    let nextValue = normalizedRawValue;
     if (definition.type === 'select') {
-      nextValue = this.resolveSelectValue(definition, rawJoinedValue);
+      nextValue = this.resolveSelectValue(definition, normalizedRawValue);
       if (!nextValue) {
         return;
       }
-    } else if (definition.type === 'date') {
-      nextValue = this.normalizeDateInputValue(rawJoinedValue);
     } else if (definition.uppercase) {
-      nextValue = rawJoinedValue.toUpperCase();
+      nextValue = normalizedRawValue.toUpperCase();
     }
 
     control.setValue(nextValue);
+    control.markAsDirty();
+    control.markAsTouched();
+  }
+
+  private clearFieldValueIfNoAssignedItems(fieldKey: string, items: LayoutLmItem[]): void {
+    const definition = this.fieldDefinitions.find((field) => field.key === fieldKey);
+    const control = this.form.get(fieldKey);
+    if (
+      !definition
+      || !control
+      || !AUTOFILL_TEXT_FIELD_KEYS.has(fieldKey)
+      || this.getItemsForField(items, fieldKey).length > 0
+    ) {
+      return;
+    }
+
+    control.setValue('');
     control.markAsDirty();
     control.markAsTouched();
   }
