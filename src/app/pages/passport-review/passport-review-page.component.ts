@@ -6,7 +6,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   LayoutLmItem,
   LayoutLmPayload,
+  OcrOverlayData,
   PassportEditableFields,
+  PassportPortraitData,
   PassportRecordDetail,
   PassportRecordSummary,
   SelectOption
@@ -32,6 +34,8 @@ export class PassportReviewPageComponent {
   records: PassportRecordSummary[] = [];
   selectedRecord: PassportRecordDetail | null = null;
   selectedLayoutLmItems: LayoutLmItem[] = [];
+  selectedOcrOverlay: OcrOverlayData | null = null;
+  selectedPortrait: PassportPortraitData | null = null;
   countryOptions: SelectOption[] = [];
   recordForm: FormGroup = this.buildForm();
 
@@ -45,6 +49,7 @@ export class PassportReviewPageComponent {
   isModalVisible = false;
   isDetailLoading = false;
   isOverlayLoading = false;
+  isPortraitLoading = false;
   isSaving = false;
   errorMessage = '';
   imageRefreshToken = '';
@@ -94,7 +99,10 @@ export class PassportReviewPageComponent {
     this.isModalVisible = true;
     this.isDetailLoading = true;
     this.isOverlayLoading = true;
+    this.isPortraitLoading = true;
     this.selectedLayoutLmItems = [];
+    this.selectedOcrOverlay = null;
+    this.selectedPortrait = null;
     this.imageRefreshToken = `${recordId}-${Date.now()}`;
 
     this.recordsService
@@ -105,27 +113,17 @@ export class PassportReviewPageComponent {
           this.selectedRecord = record;
           this.recordForm = this.buildForm(record.editable_fields);
           this.isDetailLoading = false;
+          this.isOverlayLoading = false;
           this.cdr.detectChanges();
 
-          this.recordsService
-            .generateLayoutLm(record.id)
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-              next: (generatedRecord) => {
-                this.imageRefreshToken = `${generatedRecord.id}-${generatedRecord.updated_at}-${Date.now()}`;
-                this.hydrateSelectedRecord(generatedRecord);
-              },
-              error: () => {
-                this.errorMessage = 'Khong OCR lai duoc ban ghi nay. Dang hien thi du lieu cu nhat co san.';
-                this.hydrateSelectedRecord(record);
-                this.isOverlayLoading = false;
-                this.cdr.detectChanges();
-              }
-            });
+          this.loadOcrOverlay(record.id);
+          this.loadPortrait(record.id);
+          this.hydrateSelectedRecord(record);
         },
         error: () => {
           this.errorMessage = 'Khong tai duoc chi tiet ban ghi.';
           this.isDetailLoading = false;
+          this.isPortraitLoading = false;
           this.isModalVisible = false;
           this.cdr.detectChanges();
         }
@@ -136,6 +134,9 @@ export class PassportReviewPageComponent {
     this.isModalVisible = false;
     this.selectedRecord = null;
     this.selectedLayoutLmItems = [];
+    this.selectedOcrOverlay = null;
+    this.selectedPortrait = null;
+    this.isPortraitLoading = false;
     this.errorMessage = '';
     this.imageRefreshToken = '';
   }
@@ -261,8 +262,49 @@ export class PassportReviewPageComponent {
     this.recordForm = this.buildForm(record.editable_fields);
     this.selectedLayoutLmItems = this.cloneLayoutLmItems(record.layoutlm_items);
     this.isDetailLoading = false;
-    this.isOverlayLoading = false;
     this.cdr.detectChanges();
+  }
+
+  private loadOcrOverlay(recordId: number): void {
+    this.isOverlayLoading = true;
+
+    this.recordsService
+      .getRecordOcrOverlay(recordId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (overlay) => {
+          this.selectedOcrOverlay = overlay.data;
+          this.isOverlayLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.selectedOcrOverlay = null;
+          this.isOverlayLoading = false;
+          this.errorMessage = this.errorMessage || 'Khong tai duoc lop OCR overlay de copy text tren anh.';
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  private loadPortrait(recordId: number): void {
+    this.isPortraitLoading = true;
+
+    this.recordsService
+      .getRecordPortrait(recordId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (portrait) => {
+          this.selectedPortrait = portrait.data;
+          this.isPortraitLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.selectedPortrait = null;
+          this.isPortraitLoading = false;
+          this.errorMessage = this.errorMessage || 'Khong tai duoc anh mat cat tu passport.';
+          this.cdr.detectChanges();
+        }
+      });
   }
 
   private buildLayoutLmPayload(fileName: string, items: LayoutLmItem[]): LayoutLmPayload {

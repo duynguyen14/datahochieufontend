@@ -1,0 +1,175 @@
+<section class="hero-card card border-0 shadow-sm">
+  <div class="card-body hero-grid">
+    <div>
+      <p class="hero-eyebrow">Passport Portrait Test</p>
+      <h2>Upload 1 anh passport, chi detect vung mat va crop chan dung</h2>
+      <p class="hero-text">
+        Trang nay bo qua OCR va Donut. Backend chi luu anh, detect mat tren passport, ve box
+        `face` va `portrait`, roi tra anh crop de ban soi nhanh logic cat co on khong.
+      </p>
+    </div>
+
+    <div class="upload-panel">
+      <label class="form-label upload-label" for="portraitUpload">Anh passport</label>
+      <input
+        id="portraitUpload"
+        class="form-control"
+        type="file"
+        accept="image/*,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.webp"
+        (change)="onFileSelected($event)"
+      />
+
+      <div class="upload-meta">
+        <span class="upload-file">{{ selectedFileName || 'Chua chon file' }}</span>
+        <button class="btn btn-outline-secondary btn-sm" type="button" (click)="clearResult()">
+          Xoa ket qua
+        </button>
+      </div>
+
+      @if (isDetecting) {
+        <div class="alert alert-info mb-0 mt-3">
+          Dang detect vung anh mat tren passport...
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+@if (errorMessage) {
+  <div class="alert alert-danger mt-3 mb-0">{{ errorMessage }}</div>
+}
+
+<section class="workspace-grid">
+  <article class="viewer-card card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="card-head">
+        <div>
+          <p class="section-eyebrow">Source Image</p>
+          <h3>Anh passport va overlay bbox</h3>
+        </div>
+
+        @if (result) {
+          <div class="status-chip" [class.is-ready]="result.detected">
+            {{ result.detected ? 'Da detect' : 'Chua detect' }}
+          </div>
+        }
+      </div>
+
+      @if (result) {
+        <div #imageStage class="image-stage">
+          <img
+            #sourceImage
+            class="passport-image"
+            [src]="result.image_url"
+            [alt]="result.image_name || 'passport upload'"
+            (load)="onSourceImageLoaded()"
+          />
+
+          @if (result.detected) {
+            <div class="bbox-overlay">
+              <div class="bbox face-box" [ngStyle]="faceBoxStyles">
+                <span class="bbox-label">face</span>
+              </div>
+              <div class="bbox portrait-box" [ngStyle]="portraitBoxStyles">
+                <span class="bbox-label">portrait</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="viewer-foot">
+          @if (result.detected) {
+            <span>Box do la mat detect duoc, box vang la vung crop chan dung.</span>
+          } @else {
+            <span>Backend chua bat duoc mat tren anh passport nay.</span>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <p>Upload 1 anh passport de xem backend detect vung mat the nao.</p>
+        </div>
+      }
+    </div>
+  </article>
+
+  <article class="result-card card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="card-head">
+        <div>
+          <p class="section-eyebrow">Portrait Output</p>
+          <h3>Crop chan dung va thong so detect</h3>
+        </div>
+      </div>
+
+      @if (result) {
+        <div class="portrait-panel">
+          <div class="portrait-preview-card">
+            <div class="portrait-preview-head">
+              <span>Anh mat cat</span>
+              <span class="portrait-preview-status" [class.is-ready]="result.detected">
+                {{ result.detected ? 'Da cat' : 'Khong co crop' }}
+              </span>
+            </div>
+
+            @if (result.detected && result.portrait_image_url) {
+              <img
+                class="portrait-preview-image"
+                [src]="result.portrait_image_url"
+                alt="Passport portrait crop"
+              />
+            } @else {
+              <div class="portrait-preview-empty">
+                Chua co anh crop de hien thi.
+              </div>
+            }
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Face box px</span>
+              <strong class="metric-value">
+                {{ result.face_bbox.pixels.left }}, {{ result.face_bbox.pixels.top }},
+                {{ result.face_bbox.pixels.width }}, {{ result.face_bbox.pixels.height }}
+              </strong>
+            </div>
+
+            <div class="metric-card">
+              <span class="metric-label">Portrait box px</span>
+              <strong class="metric-value">
+                {{ result.portrait_bbox.pixels.left }}, {{ result.portrait_bbox.pixels.top }},
+                {{ result.portrait_bbox.pixels.width }}, {{ result.portrait_bbox.pixels.height }}
+              </strong>
+            </div>
+
+            <div class="metric-card">
+              <span class="metric-label">Kich thuoc anh</span>
+              <strong class="metric-value">
+                {{ result.image_width }} x {{ result.image_height }}
+              </strong>
+            </div>
+
+            <div class="metric-card">
+              <span class="metric-label">Image ID</span>
+              <strong class="metric-value metric-break">
+                {{ result.image_id || '-' }}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="json-toolbar">
+          <div>
+            <p class="json-title">Debug JSON</p>
+            <p class="json-subtitle">Doc nhanh payload backend tra ve cho route portrait-only.</p>
+          </div>
+        </div>
+
+        <pre class="json-preview">{{ debugPreview }}</pre>
+      } @else {
+        <div class="empty-state result-empty">
+          <p>Ket qua crop anh mat se hien o day sau khi upload.</p>
+        </div>
+      }
+    </div>
+  </article>
+</section>

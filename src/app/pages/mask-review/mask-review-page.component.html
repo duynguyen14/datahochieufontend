@@ -1,0 +1,155 @@
+<section class="mask-toolbar card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="toolbar-grid">
+      <div>
+        <p class="toolbar-label">Mask Review</p>
+        <h2>Review anh `tonghop_mask` theo tung buoc</h2>
+        <p class="toolbar-text">
+          Bam `Next` thi anh hien tai duoc tinh la dat va chuyen sang anh tiep theo. Bam `Loi` de chuyen anh sang folder loi va xoa dong tu `metadata.jsonl`.
+          Trang nay tu dong nho anh da review de lan sau mo lai se tiep tuc dung vi tri.
+        </p>
+      </div>
+
+      @if (session) {
+        <div class="path-card">
+          <div><strong>Image dir:</strong> {{ session.image_dir }}</div>
+          <div><strong>Error dir:</strong> {{ session.error_dir }}</div>
+          <div><strong>State:</strong> {{ session.review_state_path }}</div>
+        </div>
+      }
+    </div>
+
+    @if (errorMessage) {
+      <div class="alert alert-danger mt-3 mb-0">{{ errorMessage }}</div>
+    }
+  </div>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card card border-0 shadow-sm">
+    <div class="card-body">
+      <span class="stat-label">Tong so</span>
+      <strong class="stat-value">{{ session?.stats?.total_items ?? 0 }}</strong>
+    </div>
+  </article>
+
+  <article class="stat-card card border-0 shadow-sm">
+    <div class="card-body">
+      <span class="stat-label">Da review</span>
+      <strong class="stat-value">{{ session?.stats?.reviewed_items ?? 0 }}</strong>
+    </div>
+  </article>
+
+  <article class="stat-card card border-0 shadow-sm">
+    <div class="card-body">
+      <span class="stat-label">Da dat</span>
+      <strong class="stat-value">{{ session?.stats?.approved_items ?? 0 }}</strong>
+    </div>
+  </article>
+
+  <article class="stat-card card border-0 shadow-sm">
+    <div class="card-body">
+      <span class="stat-label">Loi</span>
+      <strong class="stat-value">{{ session?.stats?.rejected_items ?? 0 }}</strong>
+    </div>
+  </article>
+
+  <article class="stat-card card border-0 shadow-sm">
+    <div class="card-body">
+      <span class="stat-label">Con lai</span>
+      <strong class="stat-value">{{ session?.stats?.pending_items ?? 0 }}</strong>
+    </div>
+  </article>
+</section>
+
+<section class="review-card card border-0 shadow-sm">
+  <div class="card-body">
+    @if (isLoading) {
+      <div class="empty-state">Dang tai anh review...</div>
+    } @else if (!hasCurrentItem) {
+      <div class="empty-state">
+        <h3>Da review het</h3>
+        <p>Khong con anh nao cho queue `tonghop_mask`.</p>
+        <button class="btn btn-outline-primary" type="button" (click)="loadSession()">Tai lai</button>
+      </div>
+    } @else {
+      <div class="review-head">
+        <div>
+          <p class="current-label">
+            Anh {{ currentItem?.position }} / {{ session?.stats?.total_items }}
+          </p>
+          <div class="title-row">
+            <h3>{{ currentItem?.file_name }}</h3>
+            <span class="status-chip" [class.status-approved]="currentItem?.status === 'approved'" [class.status-rejected]="currentItem?.status === 'rejected'">
+              {{ currentStatusLabel }}
+            </span>
+          </div>
+          <p class="current-source">Anh goc: {{ currentItem?.source_file_name }}</p>
+        </div>
+
+        <div class="review-actions">
+          <button class="btn btn-outline-secondary btn-lg" type="button" [disabled]="isSubmitting || !currentItem?.previous_file_name" (click)="goPrevious()">
+            Prev
+          </button>
+          <button class="btn btn-success btn-lg" type="button" [disabled]="isSubmitting" (click)="goNext()">
+            Next = Dat
+          </button>
+          <button class="btn btn-danger btn-lg" type="button" [disabled]="isSubmitting || currentItem?.status === 'rejected'" (click)="rejectCurrent()">
+            Loi (L)
+          </button>
+        </div>
+      </div>
+
+      <div class="image-shell">
+        <img class="review-image" [src]="currentItem?.image_url" [alt]="currentItem?.file_name || 'review image'" />
+      </div>
+    }
+  </div>
+</section>
+
+<section class="recent-card card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="recent-head">
+      <div>
+        <p class="toolbar-label">Gan day</p>
+        <h3>Lich su review moi nhat</h3>
+      </div>
+      @if (session?.last_reviewed_file_name) {
+        <span class="last-chip">Cuoi cung: {{ session?.last_reviewed_file_name }}</span>
+      }
+    </div>
+
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Anh</th>
+            <th>Ket qua</th>
+            <th>Thoi gian</th>
+            <th>Folder loi</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if ((session?.recent_decisions?.length ?? 0) === 0) {
+            <tr>
+              <td colspan="4" class="text-center py-4 text-secondary">Chua co lich su review.</td>
+            </tr>
+          } @else {
+            @for (decision of session?.recent_decisions ?? []; track decision.file_name) {
+              <tr>
+                <td class="fw-semibold">{{ decision.file_name }}</td>
+                <td>
+                  <span class="badge rounded-pill" [class]="decision.status === 'approved' ? 'text-bg-success' : 'text-bg-danger'">
+                    {{ decision.status }}
+                  </span>
+                </td>
+                <td>{{ decision.reviewed_at_utc | date: 'short' }}</td>
+                <td>{{ decision.moved_to_error_path || '-' }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

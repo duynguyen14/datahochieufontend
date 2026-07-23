@@ -1,13 +1,20 @@
 <div class="review-shell">
   <header class="shell-header">
-    <div>
-      <p class="eyebrow">Passport OCR Review</p>
-      <h1>Bang kiem duyet du lieu ho chieu</h1>
+    <div class="header-copy">
+      <p class="eyebrow">Passport OCR + Donut Workspace</p>
+      <h1>Xu ly ho chieu tren mot giao dien</h1>
       <p class="lead">
-        Xem danh sach ban ghi OCR, mo tung ban ghi de chinh JSON va luu lai truc tiep vao
-        `passport_ocr_records`.
+        Vua co man upload anh de infer nhanh bang PaddleOCR + Donut, vua co man review du lieu
+        luu trong `passport_ocr_records`.
       </p>
     </div>
+
+    <nav class="header-nav" aria-label="Main navigation">
+      <a class="nav-pill" routerLink="/inference" routerLinkActive="is-active">Inference</a>
+      <a class="nav-pill" routerLink="/portrait-test" routerLinkActive="is-active">Portrait Test</a>
+      <a class="nav-pill" routerLink="/review" routerLinkActive="is-active">Review DB</a>
+      <a class="nav-pill" routerLink="/mask-review" routerLinkActive="is-active">Review Mask</a>
+    </nav>
   </header>
 
   <main class="shell-content">

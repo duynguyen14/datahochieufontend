@@ -28,7 +28,7 @@
               <section class="image-panel">
                 <div class="panel-head">
                   <h3>Anh ho chieu</h3>
-                  <p>Click box de gan nhan. Nhan <strong>Ctrl + lan chuot</strong> de phong to/thu nho theo vi tri con tro.</p>
+                  <p>Click box OCR de goi y field phu hop, double click de copy nhanh. Nhan <strong>Ctrl + lan chuot</strong> de phong to/thu nho theo vi tri con tro.</p>
                 </div>
 
                 <div class="image-toolbar">
@@ -48,6 +48,37 @@
                   </div>
                 </div>
 
+                <div class="portrait-strip">
+                  <div class="portrait-card">
+                    <div class="portrait-card-head">
+                      <span>Anh mat cat</span>
+                      @if (portrait?.detected) {
+                        <span class="portrait-status is-ready">Da detect</span>
+                      } @else if (portraitLoading) {
+                        <span class="portrait-status">Dang cat...</span>
+                      } @else {
+                        <span class="portrait-status">Chua co</span>
+                      }
+                    </div>
+
+                    @if (portrait?.detected && portrait?.portrait_image_url) {
+                      <img
+                        class="portrait-preview-image"
+                        [src]="portrait?.portrait_image_url"
+                        alt="Passport portrait crop"
+                      />
+                    } @else {
+                      <div class="portrait-empty">
+                        @if (portraitLoading) {
+                          Dang lay vung anh mat tu backend...
+                        } @else {
+                          Chua detect duoc vung anh mat tren passport nay.
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
                 <div #imageViewport class="image-frame" (wheel)="onImageViewportWheel($event)">
                   <div
                     class="image-canvas"
@@ -62,24 +93,30 @@
                     >
                       <img #overlayImage [src]="imageUrl" [alt]="record.image_name" (load)="onImageLoaded()" />
 
-                      @if (layoutLmItems.length > 0) {
+                      @if (hasOcrOverlay) {
                         <div
-                          class="layoutlm-overlay"
+                          class="ocr-copy-overlay"
                           [style.width.px]="displayedImageWidth"
                           [style.height.px]="displayedImageHeight"
                         >
-                          @for (item of layoutLmItems; track item.id; let index = $index) {
-                            <button
-                              type="button"
-                              class="layoutlm-box"
-                              [ngClass]="getLayoutLmItemClasses(item)"
-                              [ngStyle]="getLayoutLmItemStyles(item, index)"
-                              [attr.title]="item.text + ' | ' + (item.label === 'O' ? 'Chua gan nhan' : item.label)"
-                              (click)="selectLayoutLmItem(item.id)"
-                              (dblclick)="copyLayoutLmItemText(item, $event)"
-                            >
-                              <span class="visually-hidden">{{ item.text }}</span>
-                            </button>
+                          <div class="ocr-visual-overlay" aria-hidden="true">
+                            @for (word of sortedOcrWords; track word.id) {
+                              <span
+                                class="ocr-word-box"
+                                [ngClass]="getOcrWordClasses(word)"
+                                [ngStyle]="getOcrWordBoxStyles(word)"
+                              ></span>
+                            }
+                          </div>
+                          @for (word of sortedOcrWords; track word.id) {
+                            <span
+                              class="ocr-word-layer"
+                              [ngClass]="getOcrWordClasses(word)"
+                              [ngStyle]="getOcrWordStyles(word)"
+                              [attr.title]="word.text"
+                              (click)="selectOcrWord(word)"
+                              (dblclick)="copyOcrWordText(word, $event)"
+                            >{{ word.text }}</span>
                           }
                         </div>
                       }
@@ -89,13 +126,13 @@
 
                 <div class="overlay-note">
                   @if (overlayLoading) {
-                    <span>Dang tao box LayoutLM tu OCR cho ban ghi nay...</span>
+                    <span>Dang OCR lai de tao lop copy text tren anh...</span>
                   } @else if (copiedWordText) {
                     <span>Da copy: {{ copiedWordText }}</span>
-                  } @else if (layoutLmItems.length > 0) {
-                    <span>{{ layoutLmItems.length }} box san sang de gan nhan. Click de chon, double click de copy.</span>
+                  } @else if (hasOcrOverlay) {
+                    <span>{{ sortedOcrWords.length }} word OCR. Click vao box de sang field duoc matcher gan nhat, hoac double click de copy nhanh.</span>
                   } @else {
-                    <span>Chua co box LayoutLM cho ban ghi nay.</span>
+                    <span>Chua co du lieu OCR overlay cho ban ghi nay.</span>
                   }
                 </div>
               </section>
@@ -103,77 +140,7 @@
               <section #editorPanel class="editor-panel">
                 <div class="panel-head">
                   <h3>Chinh sua du lieu</h3>
-                  <p>Gan nhan truc tiep tren box OCR, text-input se tu fill sang ben phai. Select thi ban tu chon tay.</p>
-                </div>
-
-                <div class="tag-review-panel">
-                  <div class="tag-review-head">
-                    <div>
-                      <h4>Gan nhan LayoutLM</h4>
-                      @if (selectedLayoutLmItem) {
-                        <p>
-                          Box dang chon:
-                          <strong>{{ selectedLayoutLmItem.text }}</strong>
-                          @if (selectedLayoutLmItem.label !== 'O') {
-                            <span class="current-label">{{ selectedLayoutLmItem.label }}</span>
-                          }
-                        </p>
-                      } @else {
-                        <p>Chon 1 box tren anh roi bam nhan o day de gan.</p>
-                      }
-                    </div>
-
-                    <div class="tag-review-actions">
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        [disabled]="!selectedLayoutLmItem"
-                        (click)="clearSelectedItemLabel()"
-                      >
-                        Bo gan nhan
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-danger"
-                        [disabled]="layoutLmItems.length === 0"
-                        (click)="clearAllLayoutLmLabels()"
-                      >
-                        Bo gan tat ca
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="tag-chip-grid">
-                    @for (tag of layoutLmTagDefinitions; track tag.key) {
-                      <button
-                        type="button"
-                        class="btn btn-sm tag-chip"
-                        [class.active]="isTagActiveForSelectedItem(tag.key)"
-                        [disabled]="!selectedLayoutLmItem"
-                        (click)="assignSelectedItemToField(tag.key)"
-                      >
-                        {{ tag.label }}
-                      </button>
-                    }
-                  </div>
-
-                  @if (assignedLayoutLmSummaries.length > 0) {
-                    <div class="assigned-summary">
-                      <label class="form-label">Da gan nhan</label>
-                      <div class="assigned-summary-list">
-                        @for (summary of assignedLayoutLmSummaries; track summary.fieldKey) {
-                          <button
-                            type="button"
-                            class="btn btn-outline-secondary btn-sm assigned-summary-chip"
-                            (click)="focusAssignedItem(summary.itemIds)"
-                          >
-                            <strong>{{ summary.fieldLabel }}:</strong> {{ summary.text }}
-                            <span class="assigned-count">({{ summary.itemIds.length }} box)</span>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
+                  <p>OCR text dung de doi chieu va copy tren anh. Ban chinh sua truong du lieu o panel ben phai de tao reviewed JSON train Donut.</p>
                 </div>
 
                 @if (showValidationSummary) {
@@ -185,7 +152,11 @@
 
                 <form class="row g-3" [formGroup]="form">
                   @for (field of fieldDefinitions; track field.key) {
-                    <div class="col-md-6">
+                    <div
+                      class="col-md-6"
+                      [class.field-match-active]="isFieldActive(field.key)"
+                      [class.field-match-available]="hasMatchedField(field.key)"
+                    >
                       <label class="form-label" [for]="field.key">
                         {{ field.label }}
                         @if (field.required) {
@@ -196,8 +167,11 @@
                         <select
                           class="form-select"
                           [class.is-invalid]="isFieldInvalid(field)"
+                          [class.is-linked-match]="isFieldActive(field.key)"
                           [id]="field.key"
                           [formControlName]="field.key"
+                          (focus)="onFieldFocus(field.key)"
+                          (click)="onFieldFocus(field.key)"
                         >
                           <option value="">-- Chon gia tri --</option>
                           @for (option of getFieldOptions(field); track option.value) {
@@ -208,13 +182,15 @@
                         <input
                           class="form-control"
                           [class.is-invalid]="isFieldInvalid(field)"
+                          [class.is-linked-match]="isFieldActive(field.key)"
                           [id]="field.key"
                           [formControlName]="field.key"
                           [type]="field.type"
                           (input)="onTextInput(field)"
+                          (focus)="onFieldFocus(field.key)"
+                          (click)="onFieldFocus(field.key)"
                         />
                       }
-
                       @if (isFieldInvalid(field)) {
                         <div class="invalid-feedback d-block">
                           Truong nay bat buoc.

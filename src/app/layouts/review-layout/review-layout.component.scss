@@ -11,12 +11,53 @@
   width: min(1200px, calc(100% - 2rem));
   margin: 0 auto 1.5rem;
   padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
   border-radius: 28px;
   background:
     radial-gradient(circle at top right, rgba(11, 132, 138, 0.18), transparent 35%),
     linear-gradient(135deg, rgba(255, 248, 238, 0.96), rgba(255, 255, 255, 0.86));
   border: 1px solid rgba(17, 24, 39, 0.08);
   box-shadow: 0 24px 60px rgba(112, 83, 55, 0.12);
+}
+
+.header-copy {
+  flex: 1 1 540px;
+}
+
+.header-nav {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: #0b525b;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(11, 132, 138, 0.16);
+  font-weight: 700;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.nav-pill:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 24px rgba(11, 132, 138, 0.08);
+}
+
+.nav-pill.is-active {
+  background: linear-gradient(135deg, rgba(11, 132, 138, 0.14), rgba(179, 86, 45, 0.12));
+  border-color: rgba(11, 132, 138, 0.3);
 }
 
 .eyebrow {
@@ -45,4 +86,10 @@ h1 {
 .shell-content {
   width: min(1200px, calc(100% - 2rem));
   margin: 0 auto;
+}
+
+@media (max-width: 720px) {
+  .shell-header {
+    padding: 1.5rem;
+  }
 }

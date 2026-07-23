@@ -1,0 +1,346 @@
+<section class="hero-card card border-0 shadow-sm">
+  <div class="card-body hero-grid">
+    <div>
+      <p class="hero-eyebrow">Passport AI Inference</p>
+      <h2>Upload passport, cat anh mat va so khop voi anh nguoi dung upload</h2>
+      <p class="hero-text">
+        Trang test nay dung PaddleOCR + Donut de doc passport, lay anh mat cat tu passport,
+        sau do dung YuNet + SFace de verify voi anh mat ben ngoai. Khi doi passport hoac doi anh mat,
+        he thong se goi verify lai neu da du 2 anh.
+      </p>
+    </div>
+
+    <div class="upload-panel">
+      <label class="form-label upload-label" for="passportUpload">Anh ho chieu</label>
+      <input
+        id="passportUpload"
+        class="form-control"
+        type="file"
+        accept="image/*,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.webp"
+        (change)="onFileSelected($event)"
+      />
+
+      <div class="upload-meta">
+        <span class="upload-file">{{ selectedFileName || 'Chua chon passport' }}</span>
+      </div>
+
+      <label class="form-label upload-label mt-3" for="faceUpload">Anh mat doi chieu</label>
+      <input
+        id="faceUpload"
+        class="form-control"
+        type="file"
+        accept="image/*,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.webp"
+        (change)="onFaceFileSelected($event)"
+      />
+
+      <div class="upload-meta">
+        <span class="upload-file">{{ selectedFaceFileName || 'Chua chon anh mat' }}</span>
+        <div class="upload-actions">
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="clearFaceUpload()">
+            Xoa anh mat
+          </button>
+          <button class="btn btn-outline-primary btn-sm" type="button" [disabled]="!canVerifyFace || isVerifyingFace" (click)="triggerFaceVerification()">
+            So khop lai
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="clearResult()">
+            Xoa tat ca
+          </button>
+        </div>
+      </div>
+
+      @if (isInferring) {
+        <div class="alert alert-info mb-0 mt-3">
+          Dang chay PaddleOCR + Donut tren passport...
+        </div>
+      }
+
+      @if (isVerifyingFace) {
+        <div class="alert alert-warning mb-0 mt-3">
+          Dang verify anh mat passport va anh mat upload...
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+@if (errorMessage) {
+  <div class="alert alert-danger mt-3 mb-0">{{ errorMessage }}</div>
+}
+
+@if (faceMatchErrorMessage) {
+  <div class="alert alert-warning mt-3 mb-0">{{ faceMatchErrorMessage }}</div>
+}
+
+<section class="workspace-grid">
+  <article class="viewer-card card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="card-head">
+        <div>
+          <p class="section-eyebrow">OCR Overlay</p>
+          <h3>Anh ho chieu va lop text copy</h3>
+        </div>
+
+        @if (inferenceResult) {
+          <div class="perf-badges">
+            <span class="badge text-bg-light">OCR {{ inferenceResult.performance.ocr_duration_ms }} ms</span>
+            <span class="badge text-bg-light">Donut {{ inferenceResult.performance.donut_duration_ms }} ms</span>
+            <span class="badge text-bg-light">Tong {{ inferenceResult.performance.total_duration_ms }} ms</span>
+            <span class="badge" [class]="inferenceResult.performance.cache_hit ? 'text-bg-success' : 'text-bg-warning'">
+              {{ inferenceResult.performance.cache_hit ? 'Cache hit' : 'Run moi' }}
+            </span>
+          </div>
+        }
+      </div>
+
+      @if (inferenceResult) {
+        <div #imageStage class="image-stage">
+          <img #overlayImage class="passport-image" [src]="passportDisplayImageSrc" [alt]="inferenceResult.image_name" (load)="onOverlayImageLoaded()" />
+
+          @if (hasOverlay) {
+            <div class="ocr-copy-overlay">
+              <div class="ocr-visual-overlay" aria-hidden="true">
+                @for (word of sortedOcrWords; track trackByWordId($index, word)) {
+                  <span
+                    class="ocr-word-box"
+                    [ngClass]="getOcrWordClasses(word)"
+                    [ngStyle]="getOcrWordBoxStyles(word)"
+                  ></span>
+                }
+              </div>
+              @for (word of sortedOcrWords; track trackByWordId($index, word)) {
+                <span
+                  class="ocr-word-layer"
+                  [ngClass]="getOcrWordClasses(word)"
+                  [ngStyle]="getOcrWordStyles(word)"
+                  [attr.title]="word.text"
+                  (click)="selectOcrWord(word)"
+                  (dblclick)="copyOcrWordText(word, $event)"
+                >{{ word.text }}</span>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="viewer-foot">
+          <span>{{ sortedOcrWords.length }} text box san sang de copy</span>
+          @if (copiedWordText) {
+            <span>Da copy: {{ copiedWordText }}</span>
+          } @else {
+            <span>Click box OCR de sang field matcher, double click de copy nhanh.</span>
+          }
+        </div>
+
+        <div class="face-preview-grid">
+          <div class="portrait-preview-panel">
+            <div class="portrait-preview-head">
+              <span>Anh mat cat tu passport</span>
+              @if (inferenceResult.face_image.detected) {
+                <span class="portrait-preview-status is-ready">Da detect</span>
+              } @else {
+                <span class="portrait-preview-status">Chua detect</span>
+              }
+            </div>
+
+            @if (inferenceResult.face_image.detected && passportFaceDisplayImageSrc) {
+              <img
+                class="portrait-preview-image"
+                [src]="passportFaceDisplayImageSrc"
+                alt="Passport portrait crop"
+              />
+            } @else {
+              <div class="portrait-preview-empty">
+                Backend chua cat duoc vung anh mat tu passport nay.
+              </div>
+            }
+          </div>
+
+          <div class="portrait-preview-panel">
+            <div class="portrait-preview-head">
+              <span>Anh mat upload</span>
+              @if (uploadedFacePreviewUrl) {
+                <span class="portrait-preview-status is-ready">Da chon</span>
+              } @else {
+                <span class="portrait-preview-status">Chua chon</span>
+              }
+            </div>
+
+            @if (uploadedFacePreviewUrl) {
+              <img
+                class="portrait-preview-image"
+                [src]="uploadedFacePreviewUrl"
+                alt="Uploaded face"
+              />
+            } @else {
+              <div class="portrait-preview-empty">
+                Chon them 1 anh mat de backend verify voi anh mat cat tu passport.
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <p>Upload anh ho chieu o tren de xem anh, overlay copy text va ket qua Donut.</p>
+        </div>
+      }
+    </div>
+  </article>
+
+  <article class="result-card card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="card-head">
+        <div>
+          <p class="section-eyebrow">Face Match + Donut Output</p>
+          <h3>So khop anh mat va form chinh sua</h3>
+        </div>
+
+        <div class="hint-chip">
+          Donut device: {{ inferenceResult?.performance?.donut_device || '-' }}
+        </div>
+      </div>
+
+      <div class="face-match-panel">
+        <div class="face-match-head">
+          <div>
+            <p class="json-title mb-1">Ket qua so khop anh mat</p>
+            <p class="json-subtitle mb-0">Du 2 anh la se goi verify lai. Badge nay chi de canh bao, chua auto chap nhan ho so.</p>
+          </div>
+
+          <span class="badge face-match-badge" [class]="faceMatchStatusClass">
+            {{ faceMatchStatusLabel }}
+          </span>
+        </div>
+
+        <div class="face-match-grid">
+          <div class="face-match-card">
+            <span class="face-match-label">Passport face aligned</span>
+            @if (matchedPassportAlignedFaceSrc) {
+              <img class="face-match-image" [src]="matchedPassportAlignedFaceSrc" alt="Passport aligned face" />
+            } @else if (passportFaceDisplayImageSrc) {
+              <img class="face-match-image" [src]="passportFaceDisplayImageSrc" alt="Passport face preview" />
+            } @else {
+              <div class="face-match-empty">Chua co anh mat cat tu passport.</div>
+            }
+          </div>
+
+          <div class="face-match-card">
+            <span class="face-match-label">Uploaded face aligned</span>
+            @if (matchedUploadedAlignedFaceSrc) {
+              <img class="face-match-image" [src]="matchedUploadedAlignedFaceSrc" alt="Uploaded aligned face" />
+            } @else if (uploadedFacePreviewUrl) {
+              <img class="face-match-image" [src]="uploadedFacePreviewUrl" alt="Uploaded face preview" />
+            } @else {
+              <div class="face-match-empty">Chua co anh mat upload.</div>
+            }
+          </div>
+        </div>
+
+        @if (faceMatchResult) {
+          <div class="face-match-metrics">
+            <span class="badge text-bg-light">Score {{ faceMatchResult.score }}</span>
+            <span class="badge text-bg-light">Nguong khop {{ faceMatchResult.thresholds.match }}</span>
+            <span class="badge text-bg-light">Nguong review {{ faceMatchResult.thresholds.review }}</span>
+            <span class="badge text-bg-light">Runtime {{ faceMatchResult.engine.runtime || '-' }}</span>
+            <span class="badge text-bg-light">Device {{ faceMatchResult.engine.device }}</span>
+            <span class="badge text-bg-light">Target {{ faceMatchResult.engine.target }}</span>
+            <span class="badge text-bg-light">Tong {{ faceMatchResult.performance.total_duration_ms }} ms</span>
+          </div>
+
+          <div class="face-match-message" [class.is-match]="faceMatchResult.decision === 'match'" [class.is-review]="faceMatchResult.decision === 'review'" [class.is-mismatch]="faceMatchResult.decision === 'mismatch'">
+            {{ faceMatchResult.message }}
+          </div>
+        } @else {
+          <div class="face-match-empty-info">
+            Upload passport va anh mat de xem ket qua verify o day.
+          </div>
+        }
+      </div>
+
+      <form class="result-form" [formGroup]="form">
+        <div class="form-grid">
+          @for (field of fieldDefinitions; track field.key) {
+            <div
+              class="form-field"
+              [class.form-field-wide]="field.key === 'issuing_authority' || field.key === 'place_of_birth'"
+              [class.field-match-active]="isFieldActive(field.key)"
+              [class.field-match-available]="hasMatchedField(field.key)"
+            >
+              <label class="form-label" [for]="field.key">
+                {{ field.label }}
+                @if (field.required) {
+                  <span class="text-danger">*</span>
+                }
+              </label>
+
+              @if (field.type === 'select') {
+                <select
+                  class="form-select"
+                  [class.is-linked-match]="isFieldActive(field.key)"
+                  [id]="field.key"
+                  [formControlName]="field.key"
+                  (focus)="onFieldFocus(field.key)"
+                  (click)="onFieldFocus(field.key)"
+                >
+                  <option value="">-- Chon gia tri --</option>
+                  @if (field.key === 'passport_type' || field.key === 'sex') {
+                    @for (option of field.options ?? []; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  } @else {
+                    @for (option of countryOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  }
+                </select>
+              } @else if (field.type === 'date') {
+                <input
+                  class="form-control"
+                  [class.is-linked-match]="isFieldActive(field.key)"
+                  [id]="field.key"
+                  type="date"
+                  [formControlName]="field.key"
+                  (focus)="onFieldFocus(field.key)"
+                  (click)="onFieldFocus(field.key)"
+                />
+              } @else {
+                <input
+                  class="form-control"
+                  [class.is-linked-match]="isFieldActive(field.key)"
+                  [id]="field.key"
+                  type="text"
+                  [formControlName]="field.key"
+                  (blur)="field.uppercase ? normalizeUppercaseField(field.key) : null"
+                  (focus)="onFieldFocus(field.key)"
+                  (click)="onFieldFocus(field.key)"
+                />
+              }
+            </div>
+          }
+        </div>
+      </form>
+
+      <div class="json-toolbar">
+        <div>
+          <p class="json-title">Preview JSON train Donut</p>
+          <p class="json-subtitle">Lay truc tiep tu form hien tai, sua tay xong copy la dung duoc.</p>
+        </div>
+
+        <button class="btn btn-primary" type="button" (click)="copyReviewedJson()">
+          Copy JSON
+        </button>
+      </div>
+
+      @if (copiedJsonMessage) {
+        <div class="alert alert-success py-2">{{ copiedJsonMessage }}</div>
+      }
+
+      <pre class="json-preview">{{ reviewedJsonPreview }}</pre>
+
+      @if (inferenceResult) {
+        <details class="raw-output">
+          <summary>Donut raw output</summary>
+          <pre>{{ inferenceResult.donut_raw_text }}</pre>
+        </details>
+      }
+    </div>
+  </article>
+</section>
